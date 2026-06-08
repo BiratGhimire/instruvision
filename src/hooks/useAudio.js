@@ -8,7 +8,8 @@ const useAudio = () => {
     if (!audioCtxRef.current) {
       audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
-    if (audioCtxRef.current.state === 'suspended') {
+    if (audioCtxRef.current.state === 'suspended' ||
+        audioCtxRef.current.state === 'interrupted') {
       audioCtxRef.current.resume();
     }
     return audioCtxRef.current;
