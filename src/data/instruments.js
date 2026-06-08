@@ -287,7 +287,34 @@ export const instruments = {
     ],
     waveform: "triangle",
     envelope: { attack: 0.01, decay: 0.8, sustain: 0.1, release: 3.0 }
-  }
+  },
+  sarangi: {
+  name: "Sarangi",
+  family: "String",
+  origin: "Nepal / India",
+  year: "c. 17th century",
+  description: "The sarangi is a bowed string instrument from South Asia, widely used in Nepali and North Indian classical music.",
+  history: "One of the most expressive instruments of South Asia, the sarangi has been played for centuries in Nepal and India. Its name means 'hundred colors' reflecting its tonal versatility.",
+  technique: "Played with a bow in the right hand while the left hand presses against the strings with fingernails rather than fingertips. It has sympathetic strings that resonate automatically.",
+  culturalSignificance: "Central to Nepali folk and classical music. Traditionally played by the Gandharba community in Nepal who used it as a means of storytelling and livelihood.",
+  notableMusicians: ["Ram Prasad Kadel", "Sultan Khan", "Sabri Khan"],
+  range: "C3 to C6",
+  emoji: "🎻",
+  color: "#C0392B",
+  interfaceType: "strings",
+  notes: [
+    { label: "Sa", freq: 261.63, key: "a", string: 1 },
+    { label: "Re", freq: 293.66, key: "s", string: 1 },
+    { label: "Ga", freq: 329.63, key: "d", string: 2 },
+    { label: "Ma", freq: 349.23, key: "f", string: 2 },
+    { label: "Pa", freq: 392.00, key: "g", string: 3 },
+    { label: "Dha", freq: 440.00, key: "h", string: 3 },
+    { label: "Ni", freq: 493.88, key: "j", string: 4 },
+    { label: "Sa'", freq: 523.25, key: "k", string: 4 },
+  ],
+  waveform: "sawtooth",
+  envelope: { attack: 0.05, decay: 0.3, sustain: 0.7, release: 0.8 }
+}
 };
 
 export const instrumentKeywords = {
@@ -300,5 +327,6 @@ export const instrumentKeywords = {
   tabla: ["tabla", "indian drum", "dholak", "mridangam", "darbuka"],
   saxophone: ["saxophone", "sax", "alto sax", "tenor sax", "baritone sax", "soprano sax"],
   sitar: ["sitar", "tanpura", "veena", "sarod", "indian string"],
-  harp: ["harp", "lyre", "celtic harp", "pedal harp", "arpa"]
+  harp: ["harp", "lyre", "celtic harp", "pedal harp", "arpa"],
+  sarangi: ["sarangi", "sarrangi", "nepali instrument", "gandharba"]
 };
