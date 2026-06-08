@@ -16,7 +16,7 @@ const useAudio = () => {
 
   const playNote = useCallback((freq, waveform = 'sine', envelope = {}, noteId = null) => {
     const ctx = getCtx();
-    const { attack = 0.05, decay = 0.2, sustain = 0.5, release = 0.8 } = envelope;
+    const { attack = 0.05, decay = 0.2, sustain = 0.5 } = envelope;
 
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
@@ -24,20 +24,9 @@ const useAudio = () => {
     oscillator.connect(gainNode);
     gainNode.connect(ctx.destination);
 
-    // Instrument-specific waveform shaping
-    if (waveform === 'sawtooth') {
-      oscillator.type = 'sawtooth';
-    } else if (waveform === 'triangle') {
-      oscillator.type = 'triangle';
-    } else if (waveform === 'square') {
-      oscillator.type = 'square';
-    } else {
-      oscillator.type = 'sine';
-    }
-
+    oscillator.type = ['sine','sawtooth','triangle','square'].includes(waveform) ? waveform : 'sine';
     oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
 
-    // ADSR envelope
     gainNode.gain.setValueAtTime(0, ctx.currentTime);
     gainNode.gain.linearRampToValueAtTime(0.7, ctx.currentTime + attack);
     gainNode.gain.linearRampToValueAtTime(sustain * 0.7, ctx.currentTime + attack + decay);
@@ -75,6 +64,7 @@ const useAudio = () => {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.5);
+
     } else if (type === 'snare') {
       const bufferSize = ctx.sampleRate * 0.2;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -89,6 +79,7 @@ const useAudio = () => {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
       noise.start(ctx.currentTime);
       noise.stop(ctx.currentTime + 0.3);
+
     } else if (type === 'hihat') {
       const bufferSize = ctx.sampleRate * 0.05;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -107,6 +98,7 @@ const useAudio = () => {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
       noise.start(ctx.currentTime);
       noise.stop(ctx.currentTime + 0.1);
+
     } else if (type === 'crash') {
       const bufferSize = ctx.sampleRate * 0.8;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -125,8 +117,8 @@ const useAudio = () => {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
       noise.start(ctx.currentTime);
       noise.stop(ctx.currentTime + 1.5);
+
     } else {
-      // tom / ride / generic
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
