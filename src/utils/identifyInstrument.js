@@ -11,10 +11,10 @@ export const fileToBase64 = (file) => {
 
 // ⚠️ PASTE YOUR GEMINI API KEY HERE
 // Get it FREE from: https://aistudio.google.com → Get API Key → Create API Key
-const GEMINI_API_KEY = 'AQ.Ab8RN6JgtxOJ8yFsm_HbifUWFuJ0NY23iaA_H-s1cuhhmJSRTA';
+const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_KEY || '';
 
 export const identifyInstrumentWithAI = async (base64Image, mediaType = 'image/jpeg') => {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'AQ.Ab8RN6JgtxOJ8yFsm_HbifUWFuJ0NY23iaA_H-s1cuhhmJSRTA') {
+  if (!GEMINI_API_KEY) {
     throw new Error('Please add your Gemini API key in src/utils/identifyInstrument.js');
   }
 
