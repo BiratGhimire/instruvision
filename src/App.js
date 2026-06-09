@@ -4,12 +4,16 @@ import InstrumentInfo from './components/InstrumentInfo';
 import KeyboardInterface from './components/KeyboardInterface';
 import StringsInterface from './components/StringsInterface';
 import PadsInterface from './components/PadsInterface';
+import WindInterface from './components/WindInterface';
 import BrowseInstruments from './components/BrowseInstruments';
 import { fileToBase64, identifyInstrumentWithAI, getInstrumentData } from './utils/identifyInstrument';
 
 const VIEWS = { HOME: 'home', RESULT: 'result' };
 
-// Unlocks audio on mobile browsers (required by iOS/Android)
+// Instruments that use the wind (tone-hole) interface
+const WIND_INSTRUMENTS = ['flute', 'trumpet', 'saxophone'];
+
+// Unlock audio on iOS/Android — must be called from a user gesture
 const unlockAudio = () => {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -19,7 +23,7 @@ const unlockAudio = () => {
     src.connect(ctx.destination);
     src.start(0);
     ctx.resume();
-  } catch (e) {}
+  } catch (_) {}
 };
 
 function App() {
@@ -37,21 +41,22 @@ function App() {
       const base64 = await fileToBase64(file);
       const result = await identifyInstrumentWithAI(base64, file.type);
       if (!result.identified || !result.instrumentId) {
-        setError('No musical instrument detected. Please try a clearer photo of an instrument.');
+        setError('No musical instrument detected. Try a clearer, well-lit photo of a single instrument.');
         setIsLoading(false);
         return;
       }
       const data = getInstrumentData(result.instrumentId);
       if (!data) {
-        setError(`Identified "${result.instrumentName}" but it's not in our library yet.`);
+        setError(`Identified "${result.instrumentName}" but it is not in our library yet.`);
         setIsLoading(false);
         return;
       }
       setInstrument(data);
       setConfidence(Math.round(result.confidence * 100));
       setView(VIEWS.RESULT);
+      setActivePlayTab('play');
     } catch (err) {
-      setError('Failed to analyze image. Please check your connection and try again.');
+      setError(err.message || 'Failed to analyze image. Please check your connection and try again.');
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -65,6 +70,7 @@ function App() {
       setConfidence(null);
       setView(VIEWS.RESULT);
       setError(null);
+      setActivePlayTab('play');
     }
   }, []);
 
@@ -76,14 +82,28 @@ function App() {
   };
 
   const renderInterface = () => {
-    if (!instrument) return null;
-    switch (instrument.interfaceType) {
-      case 'keyboard': return <KeyboardInterface instrument={instrument} />;
-      case 'strings': return <StringsInterface instrument={instrument} />;
-      case 'pads': return <PadsInterface instrument={instrument} />;
-      default: return <KeyboardInterface instrument={instrument} />;
-    }
-  };
+  if (!instrument) return null;
+  const id = instrument.id || '';
+  
+  if (id === 'flute' || id === 'trumpet' || id === 'saxophone') {
+    return <WindInterface instrument={instrument} />;
+  }
+  if (id === 'guitar' || id === 'violin' || id === 'sitar' || id === 'harp') {
+    return <StringsInterface instrument={instrument} />;
+  }
+  if (id === 'drums' || id === 'tabla') {
+    return <PadsInterface instrument={instrument} />;
+  }
+  if (id === 'piano') {
+    return <KeyboardInterface instrument={instrument} />;
+  }
+  // fallback based on interfaceType
+  switch (instrument.interfaceType) {
+    case 'strings': return <StringsInterface instrument={instrument} />;
+    case 'pads':    return <PadsInterface instrument={instrument} />;
+    default:        return <KeyboardInterface instrument={instrument} />;
+  }
+};
 
   return (
     <div
@@ -96,288 +116,159 @@ function App() {
         overflowX: 'hidden',
       }}
     >
-      {/* Animated background blobs — hidden on mobile for performance */}
+      {/* Background blobs */}
       <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0 }}>
-        {[...Array(6)].map((_, i) => (
+        {[...Array(4)].map((_, i) => (
           <div key={i} style={{
-            position: 'absolute',
-            borderRadius: '50%',
-            background: `radial-gradient(circle, ${['#7C6BF8','#A855F7','#6366F1','#8B5CF6','#7C3AED','#4F46E5'][i]}20, transparent)`,
-            width: `${[400,300,500,250,350,300][i]}px`,
-            height: `${[400,300,500,250,350,300][i]}px`,
-            top: `${[10,60,30,80,20,70][i]}%`,
-            left: `${[5,70,40,10,80,50][i]}%`,
-            transform: 'translate(-50%, -50%)',
-            animation: `float ${[8,10,12,9,11,7][i]}s ease-in-out infinite alternate`
+            position: 'absolute', borderRadius: '50%',
+            background: `radial-gradient(circle, ${['#7C6BF8','#A855F7','#6366F1','#8B5CF6'][i]}18, transparent)`,
+            width: `${[400,300,500,250][i]}px`, height: `${[400,300,500,250][i]}px`,
+            top: `${[10,60,30,80][i]}%`, left: `${[5,70,40,10][i]}%`,
+            transform: 'translate(-50%,-50%)',
+            animation: `float ${[8,10,12,9][i]}s ease-in-out infinite alternate`,
           }} />
         ))}
       </div>
 
       <div style={{ position: 'relative', zIndex: 1 }}>
-        {/* ── Header ── */}
+        {/* Header */}
         <header style={{
-          padding: '14px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          padding: '12px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
           backdropFilter: 'blur(20px)',
-          background: 'rgba(0,0,0,0.2)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
+          background: 'rgba(0,0,0,0.25)',
+          position: 'sticky', top: 0, zIndex: 100,
         }}>
           <div
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: view === VIEWS.RESULT ? 'pointer' : 'default' }}
             onClick={view === VIEWS.RESULT ? handleBack : undefined}
           >
             <div style={{
               width: '36px', height: '36px', flexShrink: 0,
               background: 'linear-gradient(135deg, #7C6BF8, #A855F7)',
-              borderRadius: '10px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '18px',
+              borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px',
             }}>🎵</div>
             <div>
-              <h1 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
-                InstruVision
-              </h1>
-              <p style={{ margin: 0, fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+              <h1 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', letterSpacing: '-0.3px' }}>InstruVision</h1>
+              <p style={{ margin: 0, fontSize: '0.58rem', color: 'rgba(255,255,255,0.45)', letterSpacing: '1px', textTransform: 'uppercase' }}>
                 AI Instrument Explorer
               </p>
             </div>
           </div>
-
           {view === VIEWS.RESULT && (
             <button onClick={handleBack} style={{
-              background: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              color: 'white',
-              padding: '7px 14px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '0.8rem',
-              whiteSpace: 'nowrap',
-            }}>
-              ← Back
-            </button>
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+              color: 'white', padding: '7px 14px', borderRadius: '8px',
+              cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap',
+            }}>← Back</button>
           )}
         </header>
 
-        {/* ── Main ── */}
-        <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '20px 16px' }}>
+        <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '20px 14px' }}>
 
-          {/* ═══════════ HOME VIEW ═══════════ */}
+          {/* ═══ HOME ═══ */}
           {view === VIEWS.HOME && (
             <div>
-              {/* Hero */}
-              <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <div style={{ textAlign: 'center', marginBottom: '28px' }}>
                 <h2 style={{
-                  fontSize: 'clamp(1.6rem, 6vw, 3.5rem)',
-                  fontWeight: '900',
-                  margin: '0 0 12px',
+                  fontSize: 'clamp(1.5rem, 6vw, 3.2rem)', fontWeight: '900', margin: '0 0 10px',
                   background: 'linear-gradient(135deg, #fff 0%, #A855F7 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  lineHeight: 1.2,
-                }}>
-                  Identify Any Instrument
-                </h2>
-                <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 'clamp(0.85rem, 3vw, 1.05rem)', maxWidth: '500px', margin: '0 auto 24px', lineHeight: 1.6 }}>
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1.2,
+                }}>Identify Any Instrument</h2>
+                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 'clamp(0.82rem, 3vw, 1rem)', maxWidth: '480px', margin: '0 auto 20px', lineHeight: 1.6 }}>
                   Upload a photo of any musical instrument and instantly explore its sounds, history, and interactive player.
                 </p>
               </div>
 
-              {/* Upload card */}
-              <div style={{
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '20px',
-                padding: '24px 16px',
-                border: '1px solid rgba(255,255,255,0.1)',
-                marginBottom: '24px',
-              }}>
+              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '18px', padding: '22px 14px', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '20px' }}>
                 <ImageUploader onImageSelected={handleImageSelected} isLoading={isLoading} />
                 {error && (
-                  <div style={{
-                    background: 'rgba(239,68,68,0.15)',
-                    border: '1px solid rgba(239,68,68,0.4)',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    marginTop: '16px',
-                    color: '#FCA5A5',
-                    fontSize: '0.85rem',
-                    textAlign: 'center',
-                  }}>
+                  <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '10px', padding: '11px 14px', marginTop: '14px', color: '#FCA5A5', fontSize: '0.85rem', textAlign: 'center' }}>
                     ⚠️ {error}
                   </div>
                 )}
               </div>
 
-              {/* Browse section */}
-              <div style={{
-                background: 'rgba(255,255,255,0.03)',
-                borderRadius: '20px',
-                padding: '20px 16px',
-                border: '1px solid rgba(255,255,255,0.08)',
-              }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '18px', padding: '18px 14px', border: '1px solid rgba(255,255,255,0.07)', marginBottom: '20px' }}>
                 <BrowseInstruments onSelect={handleBrowseSelect} />
               </div>
 
-              {/* Features strip — stacks to 1 col on mobile */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: '12px',
-                marginTop: '24px',
-              }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
                 {[
-                  { icon: '🤖', title: 'AI Recognition', desc: 'Gemini AI identifies instruments from your photos instantly' },
-                  { icon: '📚', title: 'Rich Knowledge', desc: 'History, technique, culture, and notable musicians' },
-                  { icon: '🎹', title: 'Play in Browser', desc: 'Interactive instrument interfaces with real audio synthesis' },
+                  { icon: '🤖', title: 'AI Recognition', desc: 'Gemini AI identifies instruments from your photos' },
+                  { icon: '📚', title: 'Rich Knowledge', desc: 'History, technique, culture & notable musicians' },
+                  { icon: '🎵', title: 'Play in Browser', desc: 'Interactive interfaces with real audio synthesis' },
                 ].map(f => (
-                  <div key={f.title} style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    borderRadius: '14px',
-                    padding: '16px',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    textAlign: 'center',
-                  }}>
-                    <div style={{ fontSize: '24px', marginBottom: '8px' }}>{f.icon}</div>
-                    <div style={{ fontWeight: '700', marginBottom: '4px', fontSize: '0.9rem' }}>{f.title}</div>
-                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', lineHeight: 1.5 }}>{f.desc}</div>
+                  <div key={f.title} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '22px', marginBottom: '6px' }}>{f.icon}</div>
+                    <div style={{ fontWeight: '700', marginBottom: '4px', fontSize: '0.85rem' }}>{f.title}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.72rem', lineHeight: 1.5 }}>{f.desc}</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* ═══════════ RESULT VIEW ═══════════ */}
+          {/* ═══ RESULT ═══ */}
           {view === VIEWS.RESULT && instrument && (
             <div>
-              {/* AI confidence badge */}
               {confidence && (
-                <div style={{
-                  background: 'rgba(124,107,248,0.15)',
-                  border: '1px solid rgba(124,107,248,0.3)',
-                  borderRadius: '12px',
-                  padding: '10px 16px',
-                  marginBottom: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  flexWrap: 'wrap',
-                }}>
-                  <span style={{ fontSize: '18px' }}>✅</span>
-                  <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)' }}>
-                    AI identified this as a <strong style={{ color: 'white' }}>{instrument.name}</strong> with{' '}
-                    <strong style={{ color: '#A855F7' }}>{confidence}% confidence</strong>
+                <div style={{ background: 'rgba(124,107,248,0.15)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '11px', padding: '9px 14px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '16px' }}>✅</span>
+                  <span style={{ fontSize: '0.83rem', color: 'rgba(255,255,255,0.8)' }}>
+                    AI identified this as a <strong style={{ color: 'white' }}>{instrument.name}</strong> with <strong style={{ color: '#A855F7' }}>{confidence}% confidence</strong>
                   </span>
                 </div>
               )}
 
-              {/* Info + Stats — stacks on mobile */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '16px',
-                marginBottom: '20px',
-              }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '14px', marginBottom: '16px' }}>
                 <InstrumentInfo instrument={instrument} />
-
-                {/* Quick stats */}
-                <div style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  borderRadius: '16px',
-                  border: `1px solid ${instrument.color}30`,
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                }}>
-                  <h3 style={{ margin: '0 0 4px', color: instrument.color, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    Quick Stats
-                  </h3>
+                <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '14px', border: `1px solid ${instrument.color}30`, padding: '14px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                  <h3 style={{ margin: '0 0 4px', color: instrument.color, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Quick Stats</h3>
                   {[
                     { label: '🎼 Family', value: instrument.family },
                     { label: '🌍 Origin', value: instrument.origin },
                     { label: '📅 Period', value: instrument.year },
                     { label: '🎵 Range', value: instrument.range },
-                    { label: '🎹 Interface', value: `${instrument.interfaceType} (${instrument.notes.length} notes)` },
-                    { label: '🔊 Sound type', value: instrument.waveform },
                   ].map(({ label, value }) => (
-                    <div key={label} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: '4px',
-                      padding: '6px 10px',
-                      background: 'rgba(255,255,255,0.04)',
-                      borderRadius: '8px',
-                      fontSize: '0.8rem',
-                    }}>
-                      <span style={{ color: 'rgba(255,255,255,0.5)' }}>{label}</span>
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px', padding: '6px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: '7px', fontSize: '0.78rem' }}>
+                      <span style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</span>
                       <span style={{ fontWeight: '600' }}>{value}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Interactive Player */}
-              <div style={{
-                background: 'rgba(255,255,255,0.04)',
-                borderRadius: '16px',
-                border: `1px solid ${instrument.color}30`,
-                overflow: 'hidden',
-              }}>
-                {/* Tabs */}
-                <div style={{
-                  display: 'flex',
-                  borderBottom: '1px solid rgba(255,255,255,0.1)',
-                  background: 'rgba(0,0,0,0.2)',
-                }}>
+              {/* Player */}
+              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '14px', border: `1px solid ${instrument.color}30`, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)' }}>
                   {['play', 'info'].map(tab => (
                     <button key={tab} onClick={() => setActivePlayTab(tab)} style={{
-                      flex: 1,
-                      padding: '12px 8px',
+                      flex: 1, padding: '11px 8px',
                       background: activePlayTab === tab ? `${instrument.color}20` : 'transparent',
                       border: 'none',
                       borderBottom: activePlayTab === tab ? `2px solid ${instrument.color}` : '2px solid transparent',
-                      color: activePlayTab === tab ? instrument.color : 'rgba(255,255,255,0.4)',
-                      cursor: 'pointer',
-                      fontWeight: '700',
-                      fontSize: '0.8rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
+                      color: activePlayTab === tab ? instrument.color : 'rgba(255,255,255,0.38)',
+                      cursor: 'pointer', fontWeight: '700', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.5px',
                     }}>
                       {tab === 'play' ? '🎵 Play' : '📖 How to Play'}
                     </button>
                   ))}
                 </div>
-
-                {/* Tab content — scrollable on mobile */}
-                <div style={{ padding: '20px 16px', overflowX: 'auto' }}>
+                <div style={{ padding: '18px 14px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                   {activePlayTab === 'play' && renderInterface()}
                   {activePlayTab === 'info' && (
-                    <div style={{ maxWidth: '600px' }}>
-                      <h3 style={{ color: instrument.color, marginTop: 0, fontSize: '1rem' }}>
-                        Playing the {instrument.name}
-                      </h3>
-                      <p style={{ color: 'rgba(255,255,255,0.8)', lineHeight: 1.7, fontSize: '0.9rem' }}>
-                        {instrument.technique}
-                      </p>
-                      <div style={{
-                        background: `${instrument.color}15`,
-                        border: `1px solid ${instrument.color}40`,
-                        borderRadius: '12px',
-                        padding: '14px 16px',
-                        marginTop: '16px',
-                      }}>
-                        <strong style={{ color: instrument.color, fontSize: '0.9rem' }}>In this app:</strong>
-                        <ul style={{ margin: '8px 0 0', paddingLeft: '18px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.8, fontSize: '0.85rem' }}>
-                          <li>Tap any note / pad / string with your finger</li>
-                          <li>On desktop, use the keyboard shortcuts shown in [ ]</li>
-                          <li>Hold notes down for sustained sound</li>
-                          <li>Try combining multiple notes!</li>
+                    <div style={{ maxWidth: '560px' }}>
+                      <h3 style={{ color: instrument.color, marginTop: 0, fontSize: '0.95rem' }}>Playing the {instrument.name}</h3>
+                      <p style={{ color: 'rgba(255,255,255,0.78)', lineHeight: 1.7, fontSize: '0.87rem' }}>{instrument.technique}</p>
+                      <div style={{ background: `${instrument.color}15`, border: `1px solid ${instrument.color}40`, borderRadius: '10px', padding: '13px 15px', marginTop: '14px' }}>
+                        <strong style={{ color: instrument.color, fontSize: '0.87rem' }}>In this app:</strong>
+                        <ul style={{ margin: '7px 0 0', paddingLeft: '17px', color: 'rgba(255,255,255,0.68)', lineHeight: 1.8, fontSize: '0.82rem' }}>
+                          <li>Tap any note / pad / string / hole with your finger</li>
+                          <li>On desktop, use keyboard shortcuts shown</li>
+                          {instrument.interfaceType === 'strings' && <li>Use "Strum Down / Strum Up" buttons or drag across strings</li>}
+                          <li>Hold notes for sustained sound</li>
                         </ul>
                       </div>
                     </div>
@@ -388,29 +279,18 @@ function App() {
           )}
         </main>
 
-        <footer style={{
-          textAlign: 'center',
-          padding: '24px 16px',
-          color: 'rgba(255,255,255,0.3)',
-          fontSize: '0.75rem',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-          marginTop: '40px',
-        }}>
+        <footer style={{ textAlign: 'center', padding: '22px 14px', color: 'rgba(255,255,255,0.25)', fontSize: '0.72rem', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '36px' }}>
           InstruVision — Nepal College of Information Technology, Pokhara University · 2026
         </footer>
       </div>
 
       <style>{`
         * { box-sizing: border-box; }
-        body { margin: 0; overflow-x: hidden; }
+        body { margin: 0; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
         @keyframes float {
-          0%   { transform: translate(-50%, -50%) scale(1); }
-          100% { transform: translate(-50%, -50%) scale(1.15) rotate(5deg); }
+          0%   { transform: translate(-50%,-50%) scale(1); }
+          100% { transform: translate(-50%,-50%) scale(1.12) rotate(4deg); }
         }
-        /* Make instrument player area horizontally scrollable on small screens */
-        .instrument-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        /* Prevent text from overflowing on very small phones */
-        h1, h2, h3, p { word-break: break-word; }
       `}</style>
     </div>
   );
