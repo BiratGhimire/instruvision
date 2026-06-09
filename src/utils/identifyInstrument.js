@@ -1,6 +1,5 @@
 import { instruments, instrumentKeywords } from '../data/instruments';
 
-// Convert image file to base64 string
 export const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -10,78 +9,77 @@ export const fileToBase64 = (file) => {
   });
 };
 
-// Local keyword-based identification fallback
+// ⚠️ PASTE YOUR GEMINI API KEY HERE
+// Get it FREE from: https://aistudio.google.com → Get API Key → Create API Key
+const GEMINI_API_KEY = 'AQ.Ab8RN6JgtxOJ8yFsm_HbifUWFuJ0NY23iaA_H-s1cuhhmJSRTA';
+
+export const identifyInstrumentWithAI = async (base64Image, mediaType = 'image/jpeg') => {
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'AQ.Ab8RN6JgtxOJ8yFsm_HbifUWFuJ0NY23iaA_H-s1cuhhmJSRTA') {
+    throw new Error('Please add your Gemini API key in src/utils/identifyInstrument.js');
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: mediaType, data: base64Image } },
+            {
+              text: `You are a musical instrument recognition expert. Identify the musical instrument in this image.
+
+Respond ONLY with valid JSON — no markdown, no backticks, nothing else before or after:
+{"identified":true,"instrumentId":"piano","instrumentName":"Piano","confidence":0.95,"description":"A grand piano"}
+
+instrumentId MUST be exactly one of: piano, guitar, drums, violin, flute, trumpet, tabla, saxophone, sitar, harp
+
+If no instrument visible: {"identified":false,"instrumentId":null,"instrumentName":null,"confidence":0,"description":"No instrument"}`
+            }
+          ]
+        }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 150 }
+      })
+    });
+  } catch (netErr) {
+    throw new Error('Network error — check your internet connection and try again.');
+  }
+
+  if (!response.ok) {
+    let msg = `API error ${response.status}`;
+    try { const e = await response.json(); msg = e.error?.message || msg; } catch (_) {}
+    throw new Error(msg);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Could not understand AI response. Try a clearer photo.');
+
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    throw new Error('Could not parse AI response. Please try again.');
+  }
+};
+
 export const identifyByKeywords = (text) => {
   const lower = text.toLowerCase();
   for (const [id, keywords] of Object.entries(instrumentKeywords)) {
-    if (keywords.some(kw => lower.includes(kw))) {
-      return id;
-    }
+    if (keywords.some(kw => lower.includes(kw))) return id;
   }
   return null;
 };
 
-// Identify instrument using Claude API (vision)
-export const identifyInstrumentWithAI = async (base64Image, mediaType = 'image/jpeg') => {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mediaType, data: base64Image }
-            },
-            {
-              type: 'text',
-              text: `You are a musical instrument recognition expert. Look at this image and identify the musical instrument shown.
-
-Respond ONLY with a JSON object in this exact format (no markdown, no backticks, no extra text):
-{
-  "identified": true,
-  "instrumentId": "piano",
-  "instrumentName": "Piano",
-  "confidence": 0.95,
-  "description": "Brief one-sentence description of what you see"
-}
-
-The instrumentId MUST be one of these exact values: piano, guitar, drums, violin, flute, trumpet, tabla, saxophone, sitar, harp
-
-If no musical instrument is visible, respond with:
-{"identified": false, "instrumentId": null, "instrumentName": null, "confidence": 0, "description": "No musical instrument detected"}`
-            }
-          ]
-        }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const text = data.content.map(b => b.text || '').join('');
-
-  try {
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
-  } catch (e) {
-    throw new Error('Could not parse AI response');
-  }
-};
-
-// Get instrument data by ID
+// Attach id to the instrument object so components can check it
 export const getInstrumentData = (id) => {
-  return instruments[id] || null;
+  const data = instruments[id];
+  if (!data) return null;
+  return { ...data, id };
 };
 
-// Get all instruments list
-export const getAllInstruments = () => {
-  return Object.entries(instruments).map(([id, data]) => ({ id, ...data }));
-};
+export const getAllInstruments = () =>
+  Object.entries(instruments).map(([id, data]) => ({ id, ...data }));
