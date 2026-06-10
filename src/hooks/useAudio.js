@@ -4,7 +4,6 @@ import { useRef, useCallback } from 'react';
 const useAudio = () => {
   const audioCtxRef = useRef(null);
   const activeNodesRef = useRef({});
-  const samplerCacheRef = useRef({});
 
   const getCtx = useCallback(() => {
     if (!audioCtxRef.current) {
