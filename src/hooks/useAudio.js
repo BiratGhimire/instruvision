@@ -1,18 +1,5 @@
 import { useRef, useCallback } from 'react';
 
-// Real instrument sample URLs from Tonejs GitHub (free, open source)
-// These are actual recordings of real instruments
-const SAMPLE_BASE = 'https://tonejs.github.io/audio/salamander/';
-const VERSILIAN_BASE = 'https://gleitz.github.io/midi-js-soundfonts/MusyngKite/';
-
-// Note frequency map
-const NOTE_FREQS = {
-  'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61,
-  'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
-  'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23,
-  'G4': 392.00, 'A4': 440.00, 'B4': 493.88,
-  'C5': 523.25, 'D5': 587.33, 'E5': 659.25,
-};
 
 const useAudio = () => {
   const audioCtxRef = useRef(null);
@@ -30,41 +17,6 @@ const useAudio = () => {
     return audioCtxRef.current;
   }, []);
 
-  // Load and cache an audio buffer from URL
-  const loadSample = useCallback(async (url) => {
-    if (samplerCacheRef.current[url]) return samplerCacheRef.current[url];
-    try {
-      const ctx = getCtx();
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Sample not found');
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-      samplerCacheRef.current[url] = audioBuffer;
-      return audioBuffer;
-    } catch (e) {
-      return null;
-    }
-  }, [getCtx]);
-
-  // Play a loaded audio buffer at a given playback rate (for pitch shifting)
-  const playSample = useCallback((buffer, playbackRate = 1.0, volume = 0.8, noteId = null) => {
-    const ctx = getCtx();
-    const source = ctx.createBufferSource();
-    const gainNode = ctx.createGain();
-
-    source.buffer = buffer;
-    source.playbackRate.value = playbackRate;
-    gainNode.gain.setValueAtTime(0, ctx.currentTime);
-    gainNode.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.01);
-
-    source.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    source.start(ctx.currentTime);
-
-    const id = noteId || Math.random();
-    activeNodesRef.current[id] = { source, gainNode, ctx };
-    return id;
-  }, [getCtx]);
 
   // Synthesize realistic instrument sounds using advanced Web Audio techniques
   const synthesizeInstrument = useCallback((freq, instrumentName, noteId) => {

@@ -10,8 +10,6 @@ import { fileToBase64, identifyInstrumentWithAI, getInstrumentData } from './uti
 
 const VIEWS = { HOME: 'home', RESULT: 'result' };
 
-// Instruments that use the wind (tone-hole) interface
-const WIND_INSTRUMENTS = ['flute', 'trumpet', 'saxophone'];
 
 // Unlock audio on iOS/Android — must be called from a user gesture
 const unlockAudio = () => {
